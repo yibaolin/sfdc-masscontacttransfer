@@ -33,7 +33,7 @@ private class transferContacts_Test {
         // Call the various Get/Set methods to test these
         // nothing to check for, just want to run the code 
         system.debug(critClass.getInputDateFormat());
-		critClass.getSearchField();
+        critClass.getSearchField();
         critClass.getSearchOperator();
         critClass.getSearchValue();
         critClass.getLogical();
@@ -44,23 +44,23 @@ private class transferContacts_Test {
         // Test all possible combinations of Fields and Operators
         List<SelectOption> operators = critClass.getOperatorSelectList();
         Set <String> fields = new Set<String>{'STRING/Field1', 'DATE/Field2', 'DATETIME/Field3', 
-        	'PICKLIST/Field4', 'MULTIPICKLIST/Field5', 'EMAIL/Field6', 'PHONE/Field7', 
-        	'DOUBLE/Field8', 'CURRENCY/Field9', 'BOOLEAN/Field10', 'TEXTAREA/Field11'}; 
- 		Set <String> values = new Set<String>{'abcde', 'abcd, efgh, ijkl', 'true', '100', 
- 			'12/31/2007', '12-21-2008', 'TODAY', 'NEXT 3 WEEKS'};
+            'PICKLIST/Field4', 'MULTIPICKLIST/Field5', 'EMAIL/Field6', 'PHONE/Field7', 
+            'DOUBLE/Field8', 'CURRENCY/Field9', 'BOOLEAN/Field10', 'TEXTAREA/Field11'}; 
+        Set <String> values = new Set<String>{'abcde', 'abcd, efgh, ijkl', 'true', '100', 
+            '12/31/2007', '12-21-2008', 'TODAY', 'NEXT 3 WEEKS'};
         
         // Three nested loops - Fields, Operators, Values
         // nothing to check for, just want to run the code
         // Can look through the Test results for Debug entries if neded 
         for (string f : fields) {
-			critClass.setSearchField(f);
-        	for (SelectOption o : operators) {
-			    critClass.setSearchOperator (o.getValue());
-        		for (string v : values) {
-			        critClass.setSearchValue (v);
-			        System.debug(f + ' ' + o.getValue() + ' ' + v + ' :' + critClass.buildWhereClause(true) + ' - ' + critClass.geterrMsg());
-        		}
-        	}        	
+            critClass.setSearchField(f);
+            for (SelectOption o : operators) {
+                critClass.setSearchOperator (o.getValue());
+                for (string v : values) {
+                    critClass.setSearchValue (v);
+                    System.debug(f + ' ' + o.getValue() + ' ' + v + ' :' + critClass.buildWhereClause(true) + ' - ' + critClass.geterrMsg());
+                }
+            }           
         }
 
         // Create an instance of the page controller to test its methods
@@ -92,13 +92,13 @@ private class transferContacts_Test {
         cntrlr.criteriaLine[1].setSearchField('DATETIME/CreatedDate');
         cntrlr.criteriaLine[1].setSearchOperator ('eq');
         cntrlr.criteriaLine[1].setSearchValue ('TODAY');
-        System.Debug(cntrlr.criteriaLine[1].buildWhereClause(true));        	
+        System.Debug(cntrlr.criteriaLine[1].buildWhereClause(true));            
         System.assertEquals('', cntrlr.criteriaLine[1].geterrMsg());
 
         cntrlr.criteriaLine[2].setSearchField('STRING/LastName');
         cntrlr.criteriaLine[2].setSearchOperator ('starts');
         cntrlr.criteriaLine[2].setSearchValue ('Test Contact');
-        System.Debug(cntrlr.criteriaLine[2].buildWhereClause(true));        	
+        System.Debug(cntrlr.criteriaLine[2].buildWhereClause(true));            
         System.assertEquals('', cntrlr.criteriaLine[2].geterrMsg());
 
         cntrlr.criteriaLine[3].setSearchField('STRING/Owner.Alias');
@@ -116,7 +116,7 @@ private class transferContacts_Test {
         
         // Enum the searchResult to test some of the code in this class
         // Nothing to test for here
-        for (TransferContactSearchResults sr : cntrlr.searchResults) {
+        for (transferContacts.TransferContactSearchResults sr : cntrlr.searchResults) {
             sr.getcontact();
             sr.getselected();
             sr.setselected(true);
