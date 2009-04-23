@@ -10,7 +10,7 @@
 * - This class is essentially generic and should be able to be re-used for any page that
 *   requires a criteria block, regardless of the object.
 *  ------------------------------------------------------------------------------------- */
-Public Class searchCriteria{
+Public With Sharing Class searchCriteria{
 
     public string SearchField = '';
     public string SearchOperator = '';
@@ -131,7 +131,7 @@ Public Class searchCriteria{
         // Get the field type, field name, and query friendly search value
         string fldType = this.SearchField.substring(0, this.SearchField.indexOf('/')) ;
         string fldName = this.SearchField.substring(this.SearchField.indexOf('/')+1) ;
-        string fldValue = this.SearchValue.replace('\'', '\\\'').trim();
+        string fldValue = String.escapeSingleQuotes(this.SearchValue) ; // replace('\'', '\\\'').trim();
                 
         if (showDebugMessages) ApexPages.AddMessage(new ApexPages.Message(ApexPages.Severity.INFO, fldType + '/' + fldName + ' ' + this.SearchOperator + ' ' + fldValue )) ;
                 
