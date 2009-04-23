@@ -7,7 +7,7 @@
 * - Used by the TransferContacts Page 
 * - Works with the TransferContactsSearchResults and searchCriteria Classes
 *  ------------------------------------------------------------------------------------- */
-public class transferContacts {
+public With Sharing class transferContacts {
 
     // From and To UserID's         
     public string fromUserID;
@@ -350,14 +350,12 @@ public class transferContacts {
         // Set the TO address
         String[] toAddresses = new String[] {user.Email};
         mail.setToAddresses(toAddresses);
-        system.debug('To Address: ' + toAddresses[0]);
         
         // Specify the name used as the display name.
         mail.setSenderDisplayName(UserInfo.getName());
         
 		// Specify the subject line for your email address.
 		mail.setSubject(TransferedContacts.size() + ' Contacts Transferred To You');
-        system.debug(TransferedContacts.size() + ' Contacts Transferred To You');
 		
 		// Set options
 		mail.setBccSender(false);
@@ -369,7 +367,6 @@ public class transferContacts {
 		
 		// Send the email
 		Messaging.SendEmailResult [] sr = Messaging.sendEmail(new Messaging.SingleEmailMessage[] { mail });
-		system.debug('Result: ' + sr[0].isSuccess());
 		 
 		if (!sr[0].isSuccess()) { 
 			// Error sending the message; display the error on the page
