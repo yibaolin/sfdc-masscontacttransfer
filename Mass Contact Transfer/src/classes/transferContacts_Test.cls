@@ -3,7 +3,10 @@
 * TransferContacts_Test Class: Test the Classes used by the Mass Contact Transfer page
 * M.Smith 8 April 2009
 * http://www.force2b.net
-*  ------------------------------------------------------------------------------------- */
+*
+* Modifications:
+* - M.Smith, 01/25/2010: Using the new lookup fields for FROm/TO userids
+* ------------------------------------------------------------------------------------- */
 private class transferContacts_Test {
 
     static testMethod void myUnitTest() {
@@ -84,13 +87,14 @@ private class transferContacts_Test {
         cntrlr.getSetDebugModeTRUE();
         cntrlr.getSetDebugModeFALSE();
         cntrlr.getInputDateFormat();
-        cntrlr.toUserID = anotheruserid.ID;
-        cntrlr.fromUserID = UserInfo.getUserID();
+        // M.Smith, 01/25/2010: Using the new lookup fields for FROm/TO userids
+        cntrlr.proxyAcctLookupTO.OwnerId = anotheruserid.ID;
+        cntrlr.proxyAcctLookupFROM.OwnerId = UserInfo.getUserID();
         cntrlr.getsearchFields();
         cntrlr.getsearchCriteria();
         cntrlr.getSearchResults();
-        cntrlr.getFromUsers();
-        cntrlr.getToUsers();
+        // cntrlr.getFromUsers();
+        // cntrlr.getToUsers();
         cntrlr.getShowBlockIfResults();
 
         // Create a search criteria that must succeed

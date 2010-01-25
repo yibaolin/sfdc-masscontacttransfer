@@ -9,13 +9,14 @@
 *
 * Modifications:
 * - M.Smith, 10/22/2009: Add support for transferring Open Tasks, Notes, and Attachments
+* - M.Smith, 01/25/2010: Convert the TO USER field to a lookup value
 *
 *  ------------------------------------------------------------------------------------- */
 public With Sharing class transferContacts {
 
     // From and To UserID's
-    public string fromUserID { get; set; }
-    public string toUserID { get; set; }
+    private string fromUserID { get; set; }
+    private string toUserID { get; set; }
 
     // Option to send an eMail to the owner after transferring
     public boolean optSendeMailToOwner { get; set; }
@@ -43,6 +44,13 @@ public With Sharing class transferContacts {
 
     // Capture a Map and Set of Contact Fields so we only do the Describe ONCE per instance
     private Map<String, Schema.SObjectField> contactFieldMap = null;
+
+    // M.Smith, 01/25/2010: Enable lookup of the TO USER instead of a pick list.
+    public Account proxyAcctLookupTO = new Account();
+    public Account proxyAcctLookupFROM = new Account();
+    public Account gettoUserLookup()   { return proxyAcctLookupTO; }
+    public Account getfromUserLookup() { return proxyAcctLookupFROM; }
+
 
     // ------------------------------------------------
     // Constructor Method
@@ -83,7 +91,7 @@ public With Sharing class transferContacts {
 
 // ------------------------------------------------
 
-    // Create a SelectOption list of all usernames in the User table (active and inactive)
+    /* // Create a SelectOption list of all usernames in the User table (active and inactive)
     public List<SelectOption> getFromUsers() {
         integer queryLimit = (testMode) ? 50 : 5000;
         List<SelectOption> options = new List<SelectOption>();
@@ -103,7 +111,7 @@ public With Sharing class transferContacts {
                 options.add(new selectOption(u.ID, u.Name));
         }
         return options;
-    }
+    } */
 
     // Return the list of Contact/Account fields for the criteria picklists
     public List<SelectOption> getsearchFields() {
@@ -160,6 +168,10 @@ public With Sharing class transferContacts {
 	// Fills searchResults[] list
 	// -------------------------------------------------------------------------------------
     public pageReference doSearch() {
+
+        // Retrieve the To & From user ID's from the lookup field
+        this.toUserID = proxyAcctLookupTO.OwnerId;
+        this.fromUserID = proxyAcctLookupFROM.OwnerId;
 
         // If no TOUser selected, then show error and return
         if (toUserID == null) {
