@@ -7,6 +7,9 @@
 * Note: The columns displayed in the search results can be modified directly in this
 * VisualForce page, even in Production. See the note in the seach results section
 * further down in the page for more information.
+*
+* Modifications:
+* - M.Smith, 01/25/2010: Using the lookup fields for FROM/TO userids
 *  -------------------------------------------------------------------------------------
 -->
 
@@ -44,11 +47,25 @@
         <apex:pageBlockSection columns="3" id="UserSelection">
             <apex:pageBlockSectionItem id="FromUser">
                 <apex:outputLabel >Transfer From User:</apex:outputLabel>
+                <apex:outputPanel layout="block" styleClass="requiredInput">
+                <apex:outputPanel layout="block" styleClass="requiredBlock"/>
+                <apex:inputField value="{!fromUserLookup.OwnerID}" required="true" />
+                </apex:outputPanel>
+            </apex:pageBlockSectionItem>
+            <!-- <apex:pageBlockSectionItem id="FromUser">
+                <apex:outputLabel >Transfer From User:</apex:outputLabel>
                 <apex:selectList value="{!fromUserID}" size="1" required="false" id="fromUserID">
                     <apex:selectOptions value="{!FromUsers}"></apex:selectOptions>
                 </apex:selectList>
-            </apex:pageBlockSectionItem>
+            </apex:pageBlockSectionItem>  -->
             <apex:pageBlockSectionItem id="ToUser">
+                <apex:outputLabel >Transfer To User:</apex:outputLabel>
+                <apex:outputPanel layout="block" styleClass="requiredInput">
+                <apex:outputPanel layout="block" styleClass="requiredBlock"/>
+                <apex:inputField value="{!toUserLookup.OwnerID}" required="true" />
+                </apex:outputPanel>
+            </apex:pageBlockSectionItem>
+            <!-- <apex:pageBlockSectionItem id="ToUser">
                 <apex:outputLabel >Transfer To User:</apex:outputLabel>
                 <apex:outputPanel layout="block" styleClass="requiredInput">
                 <apex:outputPanel layout="block" styleClass="requiredBlock"/>
@@ -56,7 +73,7 @@
                     <apex:selectOptions value="{!ToUsers}"></apex:selectOptions>
                 </apex:selectList>
                 </apex:outputPanel>
-            </apex:pageBlockSectionItem>
+            </apex:pageBlockSectionItem>  -->
                 <apex:outputLink target="_blank" value="http://www.force2b.net"><apex:image value="{!$Resource.Force2b_Logo}" alt="Force2b" height="31" width="52"/></apex:outputLink>
         </apex:pageBlockSection>
 
