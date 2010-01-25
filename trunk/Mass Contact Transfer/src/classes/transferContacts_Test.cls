@@ -32,8 +32,11 @@ private class transferContacts_Test {
 
         // Get the current user and some other user
         // NOTE: There must be at least one other active user in the system!
-        user anotheruserid = [Select ID, LocaleSidKey, Alias From User WHERE IsActive = True AND Id <> :UserInfo.getUserID() LIMIT 1];
-        user currentuser = [Select ID, LocaleSidKey, Alias From User WHERE IsActive = True AND Id = :UserInfo.getUserID() LIMIT 1];
+        // M.Smith, 01/25/2010: Only retrieve Standard users
+        user anotheruserid = [Select ID, LocaleSidKey, Alias From User WHERE IsActive = True
+            AND Id <> :UserInfo.getUserID() AND UserType = 'Standard' LIMIT 1];
+        user currentuser = [Select ID, LocaleSidKey, Alias From User WHERE IsActive = True
+            AND Id = :UserInfo.getUserID()  AND UserType = 'Standard' LIMIT 1];
 
         // Create a PageReference to the VF page being tested
         PageReference pageRef = Page.transferContacts;
