@@ -10,23 +10,76 @@
 *
 * Modifications:
 * - M.Smith, 01/25/2010: Using the lookup fields for FROM/TO userids
+* - M.Smith, 03/29/2010: The FROM USER Lookup field does not support In-Active Users
+*       - Resolve this by adding a link for "Show Inactive Users" to the page
+*       - If clicked, it hides the "Active User Lookup" and replaces it with a picklist of
+*         inactive users; and relabels the link to "Show Active Users"
 *  -------------------------------------------------------------------------------------
 -->
 
-    <!-- ********* JAVASCRIPT USED TO TOGGLE SELECTION OF SEARCH RESULTS ************ -->
-    <script  type="text/javascript">
-    function customSelectChecked(form, element_name, value)
+<!-- ********* JAVASCRIPT USED TO TOGGLE SELECTION OF SEARCH RESULTS ************ -->
+<script  type="text/javascript">
+
+// GLOBAL JAVASCRIPT VARIABLES
+// - These are the ID's of various blocks and buttons throughout the VisualForce page
+var baseBlockID = 'MassTransferContactsPage:txfrContactsForm:xferContactsPageBlock:';
+var FromUserBlock_ActiveOnly = baseBlockID + 'userLookup_ActiveUsers';
+var FromUserBlock_InActive = baseBlockID + 'userLookup_InActiveUsers';
+
+// MassTransferContactsPage:txfrContactsForm:xferContactsPageBlock:UserSelection1:ToUser1:newOwner1
+// MassTransferContactsPage:txfrContactsForm:xferContactsPageBlock:
+// MassTransferContactsPage:txfrContactsForm:xferContactsPageBlock:UserSelection1:ToUser1:newOwner1
+var ToUserID_Active = baseBlockID + 'UserSelection1:ToUser1:newOwner1';
+var ToUserID_InActive = baseBlockID + 'UserSelection2:ToUser2:newOwner2';
+
+var ToUserName_Active = baseBlockID + 'userLookup_InActiveUsers';
+var ToUserName_InActive = baseBlockID + 'userLookup_InActiveUsers';
+
+// ************************************************************************************
+// Function: toggleUserSelectionBlocks()
+// - Called "Show Inactive Users" checkbox on the page to show or hide the
+//   the picklist area for selecting inactive users
+// ************************************************************************************
+function toggleUserSelectionBlocks(show) {
+    if (show) {
+        document.getElementById(FromUserBlock_InActive).style.display = '';
+        document.getElementById(FromUserBlock_ActiveOnly).style.display = 'none';
+        document.getElementById(ToUserID_InActive).value =
+            document.getElementById(ToUserID_Active).value;
+    }
+    else
     {
-        var i = 0;
-        for (i = 0; i < form.elements.length; i++) {
-            if (form.elements[i].name.search('selected') > 0 && form.elements[i].disabled == false) {
-                form.elements[i].checked = value;
-            }
+        document.getElementById(FromUserBlock_ActiveOnly).style.display = '';
+        document.getElementById(FromUserBlock_InActive).style.display = 'none';
+        document.getElementById(ToUserID_Active).value =
+            document.getElementById(ToUserID_InActive).value;
+    }
+}
+
+// ************************************************************************************
+// Function: customSelectAllOrNoneByCheckbox()
+// - Check/Uncheck ALL values in the search results
+// ************************************************************************************
+function customSelectAllOrNoneByCheckbox(form, element_name, control)
+{  customSelectChecked(form, element_name, control.checked); }
+
+// ************************************************************************************
+// Function: customSelectChecked()
+// - Check/Uncheck the individual values in the search results
+// - Called by the customSelectAllOrNoneByCheckbox() function (which is called by the
+//   checking or unchecking the 'select all' checkbox in the search results
+// ************************************************************************************
+function customSelectChecked(form, element_name, value)
+{
+    var i = 0;
+    for (i = 0; i < form.elements.length; i++) {
+        if (form.elements[i].name.search('selected') > 0 && form.elements[i].disabled == false) {
+            form.elements[i].checked = value;
         }
     }
-    function customSelectAllOrNoneByCheckbox(form, element_name, control)
-    {  customSelectChecked(form, element_name, control.checked); }
-    </script>
+}
+
+</script>
 
     <apex:form id="txfrContactsForm" >
         <!--
@@ -35,7 +88,8 @@
         -->
         <!-- <apex:inputHidden id="DebugSetting" value="{!SetDebugModeTRUE}"/>    -->
         <apex:inputHidden id="DebugSetting" value="{!SetDebugModeFALSE}"/>
-        <apex:pageBlock title="Mass Transfer Contacts" id="Page" helpTitle="Entering Criteria" helpUrl="https://na1.salesforce.com/help/doc/en/reports_filter.htm">
+        <apex:pageBlock title="Mass Transfer Contacts" id="xferContactsPageBlock"
+        helpTitle="Entering Criteria" helpUrl="https://na1.salesforce.com/help/doc/en/reports_filter.htm">
         <apex:messages />
 
         <!-- ********* THE [SEARCH] BUTTON ************ -->
@@ -44,38 +98,48 @@
         </apex:pageBlockButtons>
 
         <!-- ********* SELECT FROM/TO USER NAME ************ -->
-        <apex:pageBlockSection columns="3" id="UserSelection">
-            <apex:pageBlockSectionItem id="FromUser">
-                <apex:outputLabel >Transfer From User:</apex:outputLabel>
-                <apex:outputPanel layout="block" styleClass="requiredInput">
-                <apex:outputPanel layout="block" styleClass="requiredBlock"/>
-                <apex:inputField value="{!fromUserLookup.OwnerID}" required="true" />
-                </apex:outputPanel>
+        <apex:pageBlockSection columns="1" id="userTypesOption">
+            <apex:pageBlockSectionItem id="userTypesSection">
+                <apex:InputCheckBox value="{!optShowInactiveUsers}"
+                id="optShowInactiveUsers" title="Show Inactive Users"
+                onChange="toggleUserSelectionBlocks(this.checked);" />
+                <apex:outputText >Select In-Active User for 'FROM' User</apex:outputText>
             </apex:pageBlockSectionItem>
-            <!-- <apex:pageBlockSectionItem id="FromUser">
-                <apex:outputLabel >Transfer From User:</apex:outputLabel>
-                <apex:selectList value="{!fromUserID}" size="1" required="false" id="fromUserID">
-                    <apex:selectOptions value="{!FromUsers}"></apex:selectOptions>
-                </apex:selectList>
-            </apex:pageBlockSectionItem>  -->
-            <apex:pageBlockSectionItem id="ToUser">
-                <apex:outputLabel >Transfer To User:</apex:outputLabel>
-                <apex:outputPanel layout="block" styleClass="requiredInput">
-                <apex:outputPanel layout="block" styleClass="requiredBlock"/>
-                <apex:inputField value="{!toUserLookup.OwnerID}" required="true" />
-                </apex:outputPanel>
-            </apex:pageBlockSectionItem>
-            <!-- <apex:pageBlockSectionItem id="ToUser">
-                <apex:outputLabel >Transfer To User:</apex:outputLabel>
-                <apex:outputPanel layout="block" styleClass="requiredInput">
-                <apex:outputPanel layout="block" styleClass="requiredBlock"/>
-                <apex:selectList value="{!toUserID}" size="1" required="false"  id="toUserID">
-                    <apex:selectOptions value="{!ToUsers}"></apex:selectOptions>
-                </apex:selectList>
-                </apex:outputPanel>
-            </apex:pageBlockSectionItem>  -->
-                <apex:outputLink target="_blank" value="http://www.force2b.net"><apex:image value="{!$Resource.Force2b_Logo}" alt="Force2b" height="31" width="52"/></apex:outputLink>
         </apex:pageBlockSection>
+
+        <apex:outputPanel id="userLookup_ActiveUsers" style="{!IF(optShowInactiveUsers, 'display:none;', '')}">
+        <apex:pageBlockSection columns="3" id="UserSelection1">
+            <apex:pageBlockSectionItem id="FromUser1">
+                <apex:outputLabel >Transfer From User:</apex:outputLabel>
+                <apex:inputField value="{!fromUserLookup.OwnerID}" id="oldOwner" required="false" />
+            </apex:pageBlockSectionItem>
+            <apex:pageBlockSectionItem id="ToUser1">
+                <apex:outputLabel >Transfer To User:</apex:outputLabel>
+                <apex:inputField value="{!toUserLookup.OwnerID}" required="false" id="newOwner1" />
+            </apex:pageBlockSectionItem>
+            <apex:outputLink target="_blank" value="http://www.force2b.net"><apex:image value="{!$Resource.Force2b_Logo}" alt="Force2b" height="31" width="52"/></apex:outputLink>
+        </apex:pageBlockSection>
+        </apex:outputPanel>
+
+        <apex:outputPanel id="userLookup_InActiveUsers" style="{!IF(optShowInactiveUsers, '', 'display:none;')}" >
+        <apex:pageBlockSection columns="3" id="UserSelection2">
+            <apex:pageBlockSectionItem id="FromUser2" >
+                <apex:outputLabel >Transfer From User:</apex:outputLabel>
+                <apex:outputPanel layout="block" styleClass="requiredInput">
+                <apex:outputPanel layout="block" styleClass="requiredBlock"/>
+                <apex:selectList value="{!fromUserID}" size="1" required="false" id="fromUserID">
+                    <apex:selectOptions value="{!FromUsersInactive}"></apex:selectOptions>
+                </apex:selectList>
+                </apex:outputPanel>
+            </apex:pageBlockSectionItem>
+            <apex:pageBlockSectionItem id="ToUser2">
+                <apex:outputLabel >Transfer To User:</apex:outputLabel>
+                <apex:inputField value="{!toUserLookup.OwnerID}" required="false" id="newOwner2" />
+            </apex:pageBlockSectionItem>
+            <apex:outputLink target="_blank" value="http://www.force2b.net"><apex:image value="{!$Resource.Force2b_Logo}" alt="Force2b" height="31" width="52"/></apex:outputLink>
+        </apex:pageBlockSection>
+        </apex:outputPanel>
+
 
         <!-- ********* SEARCH CRITERIA ************ -->
         <apex:pageBlockSection columns="6" title="Selection Criteria" collapsible="false" id="Criteria" >
@@ -118,7 +182,6 @@
 
         </apex:pageBlockSection>
     </apex:pageBlock>
-    <!-- </apex:form> -->
 
     <!-- ********* DISPLAY THE SEARCH RESULTS ************ -->
     <!-- Search Results Columns:
@@ -136,7 +199,6 @@
     --        contact.Account.Owner.Name, contact.Account.Owner.Alias
     -->
     <apex:outputPanel id="Results" layout="block" style="{!ShowBlockIfResults}">
-    <!--  <apex:form id="resultsForm" >  -->
         <apex:pageBlock id="resultsBlock">
         <apex:pageBlockButtons >
             <apex:commandButton title="Transfer Selected" value="Transfer Selected" action="{!doTransfer}"/>
@@ -174,7 +236,6 @@
                     <apex:outputText value="{!Results.CreatedDate}"/>
                 </apex:column>
             </apex:dataTable>
-        <!-- </apex:pageBlock> -->
      </apex:pageBlock>
      </apex:outputPanel>
      </apex:form>
