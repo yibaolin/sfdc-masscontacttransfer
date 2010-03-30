@@ -10,18 +10,32 @@
 * Modifications:
 * - M.Smith, 10/22/2009: Add support for transferring Open Tasks, Notes, and Attachments
 * - M.Smith, 01/25/2010: Convert the TO USER field to a lookup value
-*
+* - M.Smith, 03/29/2010: Apparently, the FROM USER Lookup field does not support In-Active Users
+*       - Resolve this by adding a link for "Show Inactive Users" to the page
+*       - If clicked, it hides the "Active User Lookup" and replaces it with a picklist of
+*         inactive users; and relabels the link to "Show Active Users"
 *  ------------------------------------------------------------------------------------- */
 public With Sharing class transferContacts {
 
-    // From and To UserID's
-    private string fromUserID { get; set; }
-    private string toUserID { get; set; }
+    // From and To UserID's - PICKLIST VERSIONS
+    public string fromUserID { get; set; }      // still using this for a picklist of inactive values
+    private string toUserID { get; set; }       // internal use only since using a lookup on the page
+
+    // From and To UserID's - LOOKUP VERSIONS
+    // M.Smith, 01/25/2010: Enable lookup of the TO USER instead of a pick list.
+    public Contact proxyAcctLookupTO = new Contact();
+    public Contact proxyAcctLookupFROM = new Contact();
+    public Contact gettoUserLookup()   { return proxyAcctLookupTO; }
+    public Contact getfromUserLookup() { return proxyAcctLookupFROM; }
 
     // Option to send an eMail to the owner after transferring
     public boolean optSendeMailToOwner { get; set; }
+
     // 10/22/2009: Option to transfer Tasks, Notes, and Attachments
     public boolean optTxfrTasksNotesOwned { get; set; }
+
+    // 02/17/2010: Option to show/hide inactive users picklist
+    public boolean optShowInactiveUsers { get; set; }
 
     // If this is set to TRUE (by an InputHidden tag on the page) then show SOQL and other debug messages
     public boolean DebugMode = false;
@@ -44,13 +58,6 @@ public With Sharing class transferContacts {
 
     // Capture a Map and Set of Contact Fields so we only do the Describe ONCE per instance
     private Map<String, Schema.SObjectField> contactFieldMap = null;
-
-    // M.Smith, 01/25/2010: Enable lookup of the TO USER instead of a pick list.
-    public Account proxyAcctLookupTO = new Account();
-    public Account proxyAcctLookupFROM = new Account();
-    public Account gettoUserLookup()   { return proxyAcctLookupTO; }
-    public Account getfromUserLookup() { return proxyAcctLookupFROM; }
-
 
     // ------------------------------------------------
     // Constructor Method
@@ -91,18 +98,18 @@ public With Sharing class transferContacts {
 
 // ------------------------------------------------
 
-    /* // Create a SelectOption list of all usernames in the User table (active and inactive)
-    public List<SelectOption> getFromUsers() {
-        integer queryLimit = (testMode) ? 50 : 5000;
+    // Create a SelectOption list of all usernames in the User table (active and inactive)
+    public List<SelectOption> getFromUsersInactive() {
+        integer queryLimit = (testMode) ? 10 : 999;
         List<SelectOption> options = new List<SelectOption>();
-        options.add(new selectOption('', '--- select a User ---'));
-        for (User u : [Select ID, Name FROM User Order by Name LIMIT :queryLimit]) {
-                options.add(new selectOption(u.ID, u.Name));
+        options.add(new selectOption('', '--- Select an Inactive User ---'));
+        for (User u : [Select ID, Name FROM User WHERE IsActive = False Order by Name LIMIT :queryLimit]) {
+            options.add(new selectOption(u.ID, u.Name));
         }
         return options;
     }
 
-    // Create a SelectOption list of Active Users in the User table
+    /* // Create a SelectOption list of Active Users in the User table
     public List<SelectOption> getToUsers() {
         integer queryLimit = (testMode) ? 50 : 5000;
         List<SelectOption> options = new List<SelectOption>();
@@ -171,7 +178,10 @@ public With Sharing class transferContacts {
 
         // Retrieve the To & From user ID's from the lookup field
         this.toUserID = proxyAcctLookupTO.OwnerId;
-        this.fromUserID = proxyAcctLookupFROM.OwnerId;
+
+        // if not showing InActive users, then get the FROM user from the LOOKUP
+        // otherwise, just use the value from the picklist of Inactive users
+        if (!this.optShowInactiveUsers) this.fromUserID = proxyAcctLookupFROM.OwnerId;
 
         // If no TOUser selected, then show error and return
         if (toUserID == null) {
