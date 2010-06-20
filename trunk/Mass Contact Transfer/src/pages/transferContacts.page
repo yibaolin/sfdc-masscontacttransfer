@@ -176,8 +176,8 @@ function customSelectChecked(form, element_name, value)
             <!-- 10/22/2009: New Option Added -->
             <apex:pageBlockSectionItem >
                 <apex:inputCheckBox Value="{!optTxfrTasksNotesOwned}" selected="true"
-                title="Transfer Open Tasks, Notes and Attachments owned by the current owner to the new owner"/>
-                <apex:outputLabel >Transfer Contact Notes and Open Activities owned by the current Owner</apex:outputLabel>
+                title="Transfer Open Tasks, Events, Notes and Attachments owned by the current owner to the new owner"/>
+                <apex:outputLabel >Transfer Open Tasks, Events, Notes and Open Activities owned by the current Owner</apex:outputLabel>
             </apex:pageBlockSectionItem>
 
         </apex:pageBlockSection>

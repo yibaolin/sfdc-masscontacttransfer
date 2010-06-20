@@ -7,6 +7,7 @@
 * Modifications:
 * - M.Smith, 01/25/2010: Using the new lookup fields for FROm/TO userids
 * - M.Smith, 03/30/2010: Minor changes to allow this to run successfully even if only one user
+* - E.Peterson, 06/18/2010: Reduced unit test dataset from 10 contacts to 5 
 * ------------------------------------------------------------------------------------- */
 private class transferContacts_Test {
 
@@ -16,8 +17,10 @@ private class transferContacts_Test {
         string UniqueKey = 'AbcDefGhi12345';
         list<Contact> c = New List<Contact>();
         List<Task> testTasks = New List<Task>();
+        List<Event> testEvents = New List<Event>();
         List<Note> testNotes = New List<Note>();
-        for (Integer i = 0; i < 10; i++) {
+        List<Attachment> testAttachments = New List<Attachment>();
+        for (Integer i = 0; i < 5; i++) {
             Contact cnew = new Contact(LastName = 'Test Contact ' + i, FirstName = UniqueKey);
             insert cnew;
             c.add(cnew);
@@ -25,11 +28,15 @@ private class transferContacts_Test {
 	        // Create tasks and Notes on the Contact
 	        for (integer n = 0; n < 5; n++) {
 	            testTasks.add(New Task(Subject = 'TEST Task' + n, Status = 'Pending', WhoID = cnew.ID));
+	            testEvents.add(New Event(Subject = 'TEST Event' + n, WhoID = cnew.ID, DurationInMinutes = 10, ActivityDateTime = Datetime.now()));
 	            testNotes.add(New Note(Title = 'TEST Note' + n, ParentID = cnew.ID));
+	            testAttachments.add(New Attachment(Body = Blob.valueOf('TEST Attachment ' + n), Name = 'TEST Attachment', ParentId = cnew.ID));
 	        }
         }
         insert(testTasks);
+        insert(testEvents);
         insert(testNotes);
+        insert(testAttachments);
 
         // Get the current user and some other user
         user anotheruser = null;
@@ -165,7 +172,7 @@ private class transferContacts_Test {
         // Click the transfer button
         cntrlrResult = cntrlr.doTransfer();
 
-        // Confirm that all 10 contacts were transferred with no errors
+        // Confirm that all 5 contacts were transferred with no errors
         if (UserInfo.getUserID() != anotheruser.ID) {
             System.assertEquals(cntrlrResult, null);
             System.assertEquals(cntrlr.searchResults.size(), 0);
