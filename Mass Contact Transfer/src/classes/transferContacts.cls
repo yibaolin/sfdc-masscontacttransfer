@@ -14,6 +14,14 @@
 *       - Resolve this by adding a link for "Show Inactive Users" to the page
 *       - If clicked, it hides the "Active User Lookup" and replaces it with a picklist of
 *         inactive users; and relabels the link to "Show Active Users"
+* - E.Peterson, 06/18/2010: 
+*   - Changed the order of transfer so that Contacts were transferred last. 
+*     This allowed me to compare the child record (Task/Note/Attachment) OwnerID to the 
+*     Contact OwnerID, since it seemed like fromUserID variable wasn't always populated.
+*   - Included child records in the total records transferred count
+*   - Added support for transferring Events
+*   - Added testing support for Events
+*   - Added testing support for Attachments
 *  ------------------------------------------------------------------------------------- */
 public With Sharing class transferContacts {
 
@@ -80,7 +88,6 @@ public With Sharing class transferContacts {
         // Define the private vars of the Map and Set of Contact Fields
         // so we only do the describe one time
         contactFieldMap = Schema.SObjectType.Contact.fields.getMap();
-
     }
 
 // ------------------------------------------------
@@ -287,21 +294,157 @@ public With Sharing class transferContacts {
             if (c.selected) IDs.add(c.contact.ID) ;
         }
         if (DebugMode) ApexPages.AddMessage(new ApexPages.Message(ApexPages.Severity.INFO, 'Selected Count: ' + IDs.size()));
+        
+        // set a database savepoint that can be used to rollback the changes if it fails
+        SavePoint sp = database.setSavepoint();
+        
+        List<database.saveresult> srs = null;
+        Integer transferCount = 0;
+        
+        // EP 6/18/2010: moved the contact update to later so that we can compare original contact owner in Tasks/Notes transfer instead of 
+        //				using unreliably populated fromUserId variable 
+        // 10/22/2009: Add support for transferring Open Tasks, Notes, and Attachments to the new owner
+        List<Note> txfrNotes = New List<Note>();
+        List<Attachment> txfrAttachments = New List<Attachment>();
+        List<Task> txfrTasks = New List<Task>();
+        List<Event> txfrEvents = New List<Event>();
+        string whereAmI;
+        try {
+	        if (optTxfrTasksNotesOwned && IDs.size() > 0) {
+	        	System.debug('Transferring Tasks/Notes/Attachments');
 
+	            whereAmI = 'Gather Records to Transfer';
+	            // Query the Contacts and their related Notes, Attachments, and Tasks to be transferred
+	            for (Contact c : [SELECT ID, Name, OwnerID,
+	            (Select ID, OwnerID, Title From Notes),
+	            (Select ID, OwnerID, Name From Attachments),
+	            (Select ID, OwnerID, IsClosed From Tasks),
+	            (Select ID, OwnerID From Events)
+	            FROM Contact WHERE ID IN :IDs]) {
+	                System.Debug('Contact Notes for ' + c.Name);
+	                if (c.Notes <> null) for (Note n : c.Notes) { if (n.OwnerID == c.OwnerID) txfrNotes.add(n); }
+	                if (c.Attachments <> null) for (Attachment at : c.Attachments) { if (at.OwnerID == c.OwnerID) txfrAttachments.add(at);  }
+	                if (c.Tasks <> null)
+	                	for (Task t : c.Tasks) {
+	                		System.debug('Assessing task ' + t.OwnerId + ' vs ' + c.OwnerID + ' (closed? ' + t.isClosed + ')');
+							if (t.OwnerID == c.OwnerID && !t.isClosed) txfrTasks.add(t); 
+						}
+					if (c.Events <> null)
+						for (Event e : c.Events) {
+	                		System.debug('Assessing event ' + e.OwnerId + ' vs ' + c.OwnerID);
+							if (e.OwnerID == c.OwnerID) txfrEvents.add(e);
+						}
+	            }
+
+		        for (Task c : txfrTasks)                { c.OwnerId = toUserId; System.Debug('Task: ' + c.ID); }
+		        for (Event c : txfrEvents)				{ c.OwnerId = toUserId; System.Debug('Event: ' + c.ID); } 
+		        for (Attachment c : txfrAttachments)    { c.OwnerId = toUserId; System.Debug('Attachment: ' + c.ID); }
+		        for (Note c : txfrNotes)                { c.OwnerId = toUserId; System.Debug('Note: ' + c.ID); }
+
+    	        boolean IsError = false;
+
+	            // ---- TASKS -----
+	            // Need to split this into blocks of 200 or less
+	            if (!IsError && txfrTasks.size() > 0) {
+	                whereAmI = 'Transfer Tasks';
+	                List<Task> txfrTasks2 = New List<Task>();
+	                integer n = 0;
+	                integer recNo = 0;
+	                for (Task c : txfrTasks) {
+	                    txfrTasks2.add(c);
+	                    n++;
+	                    recNo++;
+	                    if (n == 190 || recNo == txfrTasks.size()) {
+	                        srs = database.update(txfrTasks2);
+					        for (database.saveresult sr : srs) {
+					            if (!sr.isSuccess()) {
+					                ApexPages.AddMessage(new ApexPages.Message(ApexPages.Severity.FATAL, sr.getId() + '/' + sr.getErrors()[0].getMessage() ));
+					            } else {
+					            	transferCount++;
+					            }
+					        }
+	                        txfrTasks2.clear();
+	                        n = 0;
+	                    }
+	                }
+	            }
+	            
+	            // ---- EVENTS -----
+	            // Need to split this into blocks of 200 or less
+	            if (!IsError && txfrEvents.size() > 0) {
+	                whereAmI = 'Transfer Events';
+	                List<Event> txfrEvents2 = New List<Event>();
+	                integer n = 0;
+	                integer recNo = 0;
+	                for (Event c : txfrEvents) {
+	                    txfrEvents2.add(c);
+	                    n++;
+	                    recNo++;
+	                    if (n == 190 || recNo == txfrEvents.size()) {
+	                        srs = database.update(txfrEvents2);
+					        for (database.saveresult sr : srs) {
+					            if (!sr.isSuccess()) {
+					                ApexPages.AddMessage(new ApexPages.Message(ApexPages.Severity.FATAL, sr.getId() + '/' + sr.getErrors()[0].getMessage() ));
+					            } else {
+					            	transferCount++;
+					            }
+					        }
+	                        txfrEvents2.clear();
+	                        n = 0;
+	                    }
+	                }
+	            }
+
+
+	            // ---- NOTES -----
+	            if (!IsError && txfrNotes.size() > 0) {
+	                whereAmI = 'Transfer Notes';
+	                System.Debug(whereAmI + ': ' + txfrNotes.size() + ' records');
+	                srs = database.update(txfrNotes);
+			        for (database.saveresult sr : srs) {
+			            if (!sr.isSuccess()) {
+			                ApexPages.AddMessage(new ApexPages.Message(ApexPages.Severity.FATAL, sr.getId() + '/' + sr.getErrors()[0].getMessage() ));
+			            } else {
+			            	transferCount++;
+			            }
+			        }
+	            }
+
+	            // ---- ATTACHMENTS -----
+	            if (!IsError && txfrAttachments.size() > 0) {
+	                whereAmI = 'Transfer Attachments';
+	                System.Debug(whereAmI + ': ' + txfrAttachments.size() + ' records');
+	                srs = database.update(txfrAttachments);
+			        for (database.saveresult sr : srs) {
+			            if (!sr.isSuccess()) {
+			                ApexPages.AddMessage(new ApexPages.Message(ApexPages.Severity.FATAL, sr.getId() + '/' + sr.getErrors()[0].getMessage() ));
+			            } else {
+			            	transferCount++;
+			            }
+			        }
+	            }
+	        }
+	        else {
+	        	System.debug('Not transferring Tasks/Notes/Attachments');
+	        }
+        } catch (exception e) {
+            // Rollback the database
+            ApexPages.AddMessage(new ApexPages.Message(ApexPages.Severity.FATAL, 'Error Transferring ' + whereAmI + ':' + e.getMessage() ));
+            database.rollback(sp);
+            return null;
+        }
+        
+        // EP 6/18/2010: moved the contact update to later so that we can compare original contact owner in Tasks/Notes transfer instead of 
+        //				using unreliably populated fromUserId variable  
         // Query the contacts being transferred
         List<Contact> contacts = [SELECT ID, OwnerID, Name, Account.Name, Title, Owner.Alias FROM Contact WHERE ID IN :IDs];
         for (Contact c : contacts) {
-            c.ownerID = toUserID ;
+            c.ownerID = toUserID;
         }
         if (DebugMode) ApexPages.AddMessage(new ApexPages.Message(ApexPages.Severity.INFO, 'Query Size: ' + contacts.size()));
 
-        // set a database savepoint that can be used to rollback the changes if it fails
-        SavePoint sp = database.setSavepoint();
-
         // Process Errors and Count the Number of Records Transferred
-        Integer transferCount = 0;
         List<string> txfrdIDs = New List<string>(); // Remember which contacts were transferred
-        List<database.saveresult> srs = null;
         try {
 	        srs = database.update(contacts);
 	        for (database.saveresult sr : srs) {
@@ -323,77 +466,6 @@ public With Sharing class transferContacts {
                     system.debug('Transfer Error: ' + e.GetDmlId(i) + '/' + f + ': ' + e.getDmlMessage(i));
                 }
             }
-            database.rollback(sp);
-            return null;
-        }
-
-        // 10/22/2009: Add support for transferring Open Tasks, Notes, and Attachments to the new owner
-        List<Note> txfrNotes = New List<Note>();
-        List<Attachment> txfrAttachments = New List<Attachment>();
-        List<Task> txfrTasks = New List<Task>();
-        string whereAmI;
-        try {
-	        if (optTxfrTasksNotesOwned && txfrdIDs.size() > 0) {
-
-	            whereAmI = 'Gather Records to Transfer';
-	            // Query the Contacts and their related Notes, Attachments, and Tasks to be transferred
-	            for (Contact c : [SELECT ID, Name,
-	            (Select ID, OwnerID, Title From Notes),
-	            (Select ID, OwnerID, Name From Attachments),
-	            (Select ID, OwnerID, IsClosed From Tasks)
-	            FROM Contact WHERE ID IN :txfrdIDs]) {
-	                System.Debug('Contact Notes for ' + c.Name);
-	                if (c.Notes <> null) for (Note n : c.Notes) { if (n.OwnerID == fromUserID) txfrNotes.add(n); }
-	                if (c.Attachments <> null) for (Attachment at : c.Attachments) { if (at.OwnerID == fromUserID) txfrAttachments.add(at);  }
-	                if (c.Tasks <> null) for (Task t : c.Tasks) { if (t.OwnerID == fromUserID && !t.isClosed) txfrTasks.add(t); }
-	            }
-
-		        for (Task c : txfrTasks)                { c.OwnerId = toUserId; System.Debug('Task: ' + c.ID); }
-		        for (Attachment c : txfrAttachments)    { c.OwnerId = toUserId; System.Debug('Attachment: ' + c.ID); }
-		        for (Note c : txfrNotes)                { c.OwnerId = toUserId; System.Debug('Note: ' + c.ID); }
-
-    	        boolean IsError = false;
-
-	            // ---- TASKS -----
-	            // Need to split this into blocks of 200 or less
-	            if (!IsError && txfrTasks.size() > 0) {
-	                whereAmI = 'Transfer Tasks';
-	                List<Task> txfrTasks2 = New List<Task>();
-	                integer n = 0;
-	                integer recNo = 0;
-	                for (Task c : txfrTasks) {
-	                    txfrTasks2.add(c);
-	                    n++;
-	                    recNo++;
-	                    if (n == 190 || recNo == txfrTasks.size()) {
-	                        srs = database.update(txfrTasks2);
-	                        // if (!checkForErrors(srs)) { IsError = True; break; }
-	                        txfrTasks2.clear();
-	                        n = 0;
-	                    }
-	                }
-	            }
-
-
-	            // ---- NOTES -----
-	            if (!IsError && txfrNotes.size() > 0) {
-	                whereAmI = 'Transfer Notes';
-	                System.Debug(whereAmI + ': ' + txfrNotes.size() + ' records');
-	                srs = database.update(txfrNotes);
-	                // if (!checkForErrors(srs)) IsError = True;
-	            }
-
-	            // ---- ATTACHMENTS -----
-	            if (!IsError && txfrAttachments.size() > 0) {
-	                whereAmI = 'Transfer Attachments';
-	                System.Debug(whereAmI + ': ' + txfrAttachments.size() + ' records');
-	                srs = database.update(txfrAttachments);
-	                // if (!checkForErrors(srs)) IsError = True;
-	            }
-	        }
-        } catch (exception e) {
-            // Rollback the database
-            ApexPages.AddMessage(new ApexPages.Message(ApexPages.Severity.FATAL, 'Error Transferring ' + whereAmI + ':' + e.getMessage() ));
             database.rollback(sp);
             return null;
         }
