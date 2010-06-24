@@ -301,9 +301,9 @@ public With Sharing class transferContacts {
         List<database.saveresult> srs = null;
         Integer transferCount = 0;
         
+        // MGS 10/22/2009: Add support for transferring Open Tasks, Notes, and Attachments to the new owner
         // EP 6/18/2010: moved the contact update to later so that we can compare original contact owner in Tasks/Notes transfer instead of 
-        //				using unreliably populated fromUserId variable 
-        // 10/22/2009: Add support for transferring Open Tasks, Notes, and Attachments to the new owner
+        //              using unreliably populated fromUserId variable 
         List<Note> txfrNotes = New List<Note>();
         List<Attachment> txfrAttachments = New List<Attachment>();
         List<Task> txfrTasks = New List<Task>();
@@ -311,35 +311,53 @@ public With Sharing class transferContacts {
         string whereAmI;
         try {
 	        if (optTxfrTasksNotesOwned && IDs.size() > 0) {
-	        	System.debug('Transferring Tasks/Notes/Attachments');
+	        	System.debug(LoggingLevel.Error, '++++ Transferring Tasks/Notes/Attachments');
 
 	            whereAmI = 'Gather Records to Transfer';
 	            // Query the Contacts and their related Notes, Attachments, and Tasks to be transferred
+	            // MGS, 06/22/2010: Limit the Sub-Queries to 1000 records because SalesForce
+	            //    seems to have an issue with more than that
 	            for (Contact c : [SELECT ID, Name, OwnerID,
 	            (Select ID, OwnerID, Title From Notes),
-	            (Select ID, OwnerID, Name From Attachments),
-	            (Select ID, OwnerID, IsClosed From Tasks),
-	            (Select ID, OwnerID From Events)
+	            (Select ID, OwnerID, Name From Attachments ),
+	            (Select ID, OwnerID, IsClosed From Tasks ),
+	            (Select ID, OwnerID From Events )
 	            FROM Contact WHERE ID IN :IDs]) {
-	                System.Debug('Contact Notes for ' + c.Name);
-	                if (c.Notes <> null) for (Note n : c.Notes) { if (n.OwnerID == c.OwnerID) txfrNotes.add(n); }
-	                if (c.Attachments <> null) for (Attachment at : c.Attachments) { if (at.OwnerID == c.OwnerID) txfrAttachments.add(at);  }
+	                System.Debug(LoggingLevel.Error, '++++ Contact Related Items for ' + c.Name);
+                    if (c.Notes <> null)        System.Debug(LoggingLevel.Error, '+    Notes.size=' + c.Notes.size());
+                    if (c.Attachments <> null)  System.Debug(LoggingLevel.Error, '+    Attachments.size=' + c.Attachments.size());
+                    if (c.Tasks <> null)        System.Debug(LoggingLevel.Error, '+    Tasks.size=' + c.Tasks.size());
+                    if (c.Events <> null)       System.Debug(LoggingLevel.Error, '+    Events.size=' + c.Events.size());
+
+	                if (c.Notes <> null) 
+	                   for (Note n : c.Notes) { 
+                           System.debug(LoggingLevel.Error, '++++ Assessing Note ' + n.OwnerId + ' vs ' + c.OwnerID);
+	                   	   if (n.OwnerID == c.OwnerID) txfrNotes.add(n); 
+                   	   }
+                   	   
+	                if (c.Attachments <> null) 
+	                   for (Attachment at : c.Attachments) { 
+                           System.debug(LoggingLevel.Error, '++++ Assessing Attachments ' + at.OwnerId + ' vs ' + c.OwnerID);
+	                   	   if (at.OwnerID == c.OwnerID) txfrAttachments.add(at);  
+                   	   }
+	                
 	                if (c.Tasks <> null)
 	                	for (Task t : c.Tasks) {
-	                		System.debug('Assessing task ' + t.OwnerId + ' vs ' + c.OwnerID + ' (closed? ' + t.isClosed + ')');
+	                		System.debug(LoggingLevel.Error, '++++ Assessing task ' + t.OwnerId + ' vs ' + c.OwnerID + ' (closed? ' + t.isClosed + ')');
 							if (t.OwnerID == c.OwnerID && !t.isClosed) txfrTasks.add(t); 
 						}
+						
 					if (c.Events <> null)
 						for (Event e : c.Events) {
-	                		System.debug('Assessing event ' + e.OwnerId + ' vs ' + c.OwnerID);
+	                		System.debug(LoggingLevel.Error, '++++ Assessing event ' + e.OwnerId + ' vs ' + c.OwnerID);
 							if (e.OwnerID == c.OwnerID) txfrEvents.add(e);
 						}
 	            }
 
-		        for (Task c : txfrTasks)                { c.OwnerId = toUserId; System.Debug('Task: ' + c.ID); }
-		        for (Event c : txfrEvents)				{ c.OwnerId = toUserId; System.Debug('Event: ' + c.ID); } 
-		        for (Attachment c : txfrAttachments)    { c.OwnerId = toUserId; System.Debug('Attachment: ' + c.ID); }
-		        for (Note c : txfrNotes)                { c.OwnerId = toUserId; System.Debug('Note: ' + c.ID); }
+		        for (Task c : txfrTasks)                { c.OwnerId = toUserId; System.Debug(LoggingLevel.Error, '++++ Task: ' + c.ID); }
+		        for (Event c : txfrEvents)				{ c.OwnerId = toUserId; System.Debug(LoggingLevel.Error, '++++ Event: ' + c.ID); } 
+		        for (Attachment c : txfrAttachments)    { c.OwnerId = toUserId; System.Debug(LoggingLevel.Error, '++++ Attachment: ' + c.ID); }
+		        for (Note c : txfrNotes)                { c.OwnerId = toUserId; System.Debug(LoggingLevel.Error, '++++ Note: ' + c.ID); }
 
     	        boolean IsError = false;
 
@@ -399,7 +417,7 @@ public With Sharing class transferContacts {
 	            // ---- NOTES -----
 	            if (!IsError && txfrNotes.size() > 0) {
 	                whereAmI = 'Transfer Notes';
-	                System.Debug(whereAmI + ': ' + txfrNotes.size() + ' records');
+	                System.Debug(LoggingLevel.Error, '++++ ' + whereAmI + ': ' + txfrNotes.size() + ' records');
 	                srs = database.update(txfrNotes);
 			        for (database.saveresult sr : srs) {
 			            if (!sr.isSuccess()) {
@@ -413,7 +431,7 @@ public With Sharing class transferContacts {
 	            // ---- ATTACHMENTS -----
 	            if (!IsError && txfrAttachments.size() > 0) {
 	                whereAmI = 'Transfer Attachments';
-	                System.Debug(whereAmI + ': ' + txfrAttachments.size() + ' records');
+	                System.Debug(LoggingLevel.Error, '++++ ' + whereAmI + ': ' + txfrAttachments.size() + ' records');
 	                srs = database.update(txfrAttachments);
 			        for (database.saveresult sr : srs) {
 			            if (!sr.isSuccess()) {
@@ -423,9 +441,33 @@ public With Sharing class transferContacts {
 			            }
 			        }
 	            }
+
+                // MGS, 06/22/2010: Are there are remaining items to transfer that went beyond
+                //     our query limits
+                List<String> batchContactIDs = new List<String>();
+                for (Contact c : [SELECT ID, Name, OwnerID,
+                (Select ID, OwnerID, Title From Notes limit 1),
+                (Select ID, OwnerID, Name From Attachments limit 1),
+                (Select ID, OwnerID, IsClosed From Tasks limit 1),
+                (Select ID, OwnerID From Events limit 1)
+                FROM Contact WHERE ID IN :IDs]) {
+                    if (c.Notes <> null && c.Notes.size() > 0) batchContactIDs.add(c.id);
+                    else if (c.Tasks <> null && c.Tasks.size() > 0) batchContactIDs.add(c.id);
+                    else if (c.Attachments <> null && c.Attachments.size() > 0) batchContactIDs.add(c.id);
+                    else if (c.Events <> null && c.Events.size() > 0) batchContactIDs.add(c.id);
+                }
+                if (batchContactIDs.size() > 0) {
+                	System.debug(LoggingLevel.Error, 
+                	   '++++ There are remaining Tasks/Notes/Attachments to transfer for: ' + batchContactIDs);
+                	
+                	// Schedule the batch job!
+	                //id batchinstanceid = database.executeBatch(
+	                //    new batch_transferContacts(toUserId, batchContactIDs), 200);
+                }
+
 	        }
 	        else {
-	        	System.debug('Not transferring Tasks/Notes/Attachments');
+	        	System.debug(LoggingLevel.Error, '++++ Not transferring Tasks/Notes/Attachments');
 	        }
         } catch (exception e) {
             // Rollback the database
@@ -463,7 +505,7 @@ public With Sharing class transferContacts {
                 ApexPages.AddMessage(new ApexPages.Message(ApexPages.Severity.FATAL,
                    e.GetDmlId(i) + ': ' + e.getDmlMessage(i) ));
                 for (string f : e.getDmlFieldNames(i)){
-                    system.debug('Transfer Error: ' + e.GetDmlId(i) + '/' + f + ': ' + e.getDmlMessage(i));
+                    system.debug(LoggingLevel.Error, '++++ Transfer Error: ' + e.GetDmlId(i) + '/' + f + ': ' + e.getDmlMessage(i));
                 }
             }
             database.rollback(sp);
